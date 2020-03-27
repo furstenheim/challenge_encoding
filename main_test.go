@@ -3,6 +3,7 @@ package challenge_parser_test
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"testing"
@@ -31,21 +32,24 @@ func TestParse(t *testing.T) {
 		input := regexp.MustCompile(`\n\s+`).ReplaceAll([]byte(tc.input), []byte("\n"))
 		fmt.Println(string(input))
 		fmt.Println(reflect.TypeOf(tc.parser))
-		challenge_parser.Parse(tc.parser, bytes.NewReader(input))
+		err := challenge_parser.Parse(tc.parser, bytes.NewReader(input))
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
 type firstTestFile struct {
-	NCases int `0`
-	Calls []firstTestCall `1 indexed:"NCases"`
-	NQueries int `3`
-	Queries []query `4 indexed:"NQueries"`
+	NCases int `index:"0"`
+	Calls []firstTestCall `index:"1" indexed:"NCases"`
+	NQueries int `index:"2"`
+	Queries []query `index:"3" indexed:"NQueries"`
 
 }
 type query struct {
-	time int `0 delimiter:"space"`
+	Time int `index:"0" delimiter:"space"`
 }
 type firstTestCall struct {
-	Start int `0 delimiter:"space"`
-	End int `1`
+	Start int `index:"0" delimiter:"space"`
+	End int `index:"1"`
 }
