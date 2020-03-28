@@ -45,8 +45,41 @@ func Parse (t interface{}, reader io.Reader) (error) {
 	return err
 }
 
-func parseInput (stack []*typeParser, reader bufio.Reader) (interface{}, error) {
-	if kindInSlice()
+func parseInput (current *visitor, reader bufio.Reader) (interface{}, error) {
+	currentParser := current.parser
+	if kindInSlice(currentParser.kind, basic_types) {
+		split := current.findDelimiter()
+		reader.ReadString(split)
+	}
+	return nil, nil
+}
+
+func (v * visitor) findDelimiter () byte {
+	if v == nil { // last delimiter
+		return '\n'
+	}
+	if v.isStructEl && !v.isLast {
+		return v.parser.field.delimiter
+	}
+	if v.isStructEl && v.isLast {
+		return v.prev.findDelimiter()
+	}
+	if v.isArrayEl && !v.isLast {
+		return v.prev.parser.field.elemDelimiter
+	}
+	if v.isArrayEl && v.isLast {
+		return v.prev.findDelimiter()
+	}
+	panic("Unexpected")
+}
+
+type visitor struct {
+	parser *typeParser
+	prev * visitor
+	position int
+	isLast bool
+	isArrayEl bool
+	isStructEl bool
 }
 
 
@@ -59,6 +92,9 @@ func parseType (typeOf reflect.Type) (*typeParser, error) {
 	}
 	if kind == reflect.Slice {
 		elem := typeOf.Elem()
+		if elem.Kind() == reflect.Slice {
+			return nil, fmt.Errorf("doubly nested array not supported since it is not indexed")
+		}
 		elemParser, elemParseErr := parseType(elem)
 		if elemParseErr != nil {
 			return &typeParser{}, elemParseErr
@@ -154,51 +190,52 @@ type field struct {
 	name string
 	index int
 	// parser *typeParser
-	delimiter string
-	elemDelimiter string // Used for arrays
+	delimiter byte
+	elemDelimiter byte // Used for arrays
 	indexedByString string
 	indexedBy int
 }
 
-func (parser typeParser) parseDelimiter (structField reflect.StructField) (string, error) {
+func (parser typeParser) parseDelimiter (structField reflect.StructField) (byte, error) {
 	tag := structField.Tag
 	delimiterText, ok := tag.Lookup(HEADER_DELIMITER)
 	if !ok {
-		return "\n", nil
+		return '\n', nil
 	}
 	if delimiterText == DELIMITER_SPACE {
-		return " ", nil
+		return ' ', nil
 	}
-	return "", fmt.Errorf("unknown delimiter %s", delimiterText)
+	return ' ', fmt.Errorf("unknown delimiter %s", delimiterText)
 }
 
 func (parser typeParser) parseIndexedBy (structField reflect.StructField) (string, error) {
 	tag := structField.Tag
-	delimitedBy, ok := tag.Lookup(HEADER_INDEXED)
+	indexedBy, ok := tag.Lookup(HEADER_INDEXED)
 	kind := structField.Type.Kind()
 	if ok && kind != reflect.Slice {
 		return "", fmt.Errorf("non slice was indexed %s", structField.Name)
 	}
-	if  kind == reflect.Slice && (!ok || delimitedBy == "") {
+	if  kind == reflect.Slice && (!ok || indexedBy == "") {
 		return "", fmt.Errorf("slice should've been indexed and it was not %s", structField.Name)
 	}
-	return delimitedBy, nil
+	return indexedBy, nil
 }
 
-func (parser typeParser) parseElemDelimiter (structField reflect.StructField) (string, error) {
+func (parser typeParser) parseElemDelimiter (structField reflect.StructField) (byte, error) {
 	tag := structField.Tag
 	delimitedBy, ok := tag.Lookup(HEADER_ELEM_DELIMITER)
 	kind := structField.Type.Kind()
+	var delimitedByByte byte
 	if ok && kind != reflect.Slice {
-		return "", fmt.Errorf("non slice was elem delimited %s", structField.Name)
+		return ' ', fmt.Errorf("non slice was elem delimited %s", structField.Name)
 	}
 	if kind == reflect.Slice && (!ok || delimitedBy == "") {
-		delimitedBy = "\n"
+		delimitedByByte = '\n'
 	}
 	if  kind == reflect.Slice && (delimitedBy == DELIMITER_SPACE) {
-		delimitedBy = " "
+		delimitedByByte = ' '
 	}
-	return delimitedBy, nil
+	return delimitedByByte, nil
 }
 
 func (parser typeParser) parseIndex (structField reflect.StructField) (int, error) {
@@ -217,7 +254,7 @@ func (parser typeParser) parseIndex (structField reflect.StructField) (int, erro
 	if index < 0 {
 		return 0, fmt.Errorf("received negative index for field %s value %d", structField.Name, index)
 	}
-	if parser.fields[index].field.delimiter != "" {
+	if parser.fields[index] != nil {
 		return 0, fmt.Errorf("received repeated index for field %s", structField.Name)
 	}
 	return int(index), nil

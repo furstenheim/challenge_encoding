@@ -44,7 +44,6 @@ type firstTestFile struct {
 	Calls []firstTestCall `index:"1" indexed:"NCases"`
 	NQueries int `index:"2"`
 	Queries []query `index:"3" indexed:"NQueries"`
-
 }
 type query struct {
 	Time int `index:"0" delimiter:"space"`
@@ -59,3 +58,4 @@ type firstTestCall struct {
 // TODO test array separated by spaces are not spaces
 // TODO test uint, int64 int32
 // TODO test struct -> struct -> elem
+// TODO error test on [][]
