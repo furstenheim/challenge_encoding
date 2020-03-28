@@ -53,7 +53,7 @@ type firstTestFile struct {
 	NCases int `index:"0"`
 	Calls []firstTestCall `index:"1" indexed:"NCases"`
 	NQueries int `index:"2"`
-	Queries []query `index:"3" indexed:"NQueries"`
+	Queries []query `index:"3" indexed:"NQueries" elem_delimiter:"space"`
 }
 type query struct {
 	Time int `index:"0" delimiter:"space"`
