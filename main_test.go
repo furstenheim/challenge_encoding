@@ -53,3 +53,8 @@ type firstTestCall struct {
 	Start int `index:"0" delimiter:"space"`
 	End int `index:"1"`
 }
+
+// TODO test aliases
+// TODO test fixed size arrays
+// TODO test array separated by spaces are not spaces
+// TODO test uint, int64 int32
