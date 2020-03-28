@@ -31,28 +31,77 @@ var basic_types = []reflect.Kind{
 	reflect.Float64,
 	reflect.String,
 }
-
 func Parse (t interface{}, reader io.Reader) (error) {
-	// buffedReader := bufio.NewReader(reader)
+	buffedReader := bufio.NewReader(reader)
 
 	// 	buffedReader.ReadString('\n')
 	typeOf := reflect.TypeOf(t)
-	if typeOf.Kind() != reflect.Struct {
-		return fmt.Errorf("top structure must be a struct")
+	if typeOf.Kind() != reflect.Ptr {
+		return fmt.Errorf("top structure must be a pointer")
+	}
+	if t == nil {
+		return fmt.Errorf("input must not be nil")
 	}
 	// TODO throw if not struct
-	_, err := parseType(typeOf)
+	parser, err := parseType(typeOf.Elem())
+	root := &visitor{
+		value:      reflect.ValueOf(t).Elem(),
+		parser:     parser,
+		prev:       nil,
+		position:   0,
+		isLast:     false,
+		isArrayEl:  false,
+		isStructEl: false,
+	}
+	v, err := parseInput(root, buffedReader)
+	fmt.Println(v)
 	return err
 }
 
-func parseInput (current *visitor, reader bufio.Reader) (interface{}, error) {
+func parseInput (current *visitor, reader *bufio.Reader) (interface{}, error) {
 	currentParser := current.parser
+	v := current.value
 	if kindInSlice(currentParser.kind, basic_types) {
 		split := current.findDelimiter()
-		reader.ReadString(split)
+		text, readErr := reader.ReadString(split)
+		if readErr != nil {
+			return nil, readErr
+		}
+		switch currentParser.kind {
+		case reflect.String:
+			v.SetString(text)
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			n, err := strconv.ParseInt(text, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("could not parse %s for kind %s", text, currentParser.kind)
+			}
+			if v.OverflowInt(n) {
+				return nil, fmt.Errorf("overflow for %s with kind %s", text, currentParser.kind)
+			}
+			v.SetInt(n)
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			n, err := strconv.ParseUint(text, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("overflow value with %s for kind %s", text, currentParser.kind)
+			}
+			if v.OverflowUint(n) {
+				return nil, fmt.Errorf("overflow for %s with kind %s", text, currentParser.kind)
+			}
+			v.SetUint(n)
+		case reflect.Float32, reflect.Float64:
+			n, err := strconv.ParseFloat(text, v.Type().Bits())
+			if err != nil {
+				return nil, fmt.Errorf("overflow value with %s for kind %s", text, currentParser.kind)
+			}
+			if v.OverflowFloat(n) {
+				return nil, fmt.Errorf("overflow for %s with kind %s", text, currentParser.kind)
+			}
+			v.SetFloat(n)
+		}
 	}
 	return nil, nil
 }
+
 
 func (v * visitor) findDelimiter () byte {
 	if v == nil { // last delimiter
@@ -74,6 +123,7 @@ func (v * visitor) findDelimiter () byte {
 }
 
 type visitor struct {
+	value reflect.Value
 	parser *typeParser
 	prev * visitor
 	position int
@@ -189,6 +239,7 @@ type typeParser struct {
 type field struct {
 	name string
 	index int
+	value reflect.Value
 	// parser *typeParser
 	delimiter byte
 	elemDelimiter byte // Used for arrays

@@ -2,12 +2,12 @@ package challenge_parser_test
 
 import (
 	"bytes"
+	"challenge_parser"
 	"fmt"
 	"log"
 	"reflect"
 	"regexp"
 	"testing"
-	"challenge_parser"
 )
 
 func TestParse(t *testing.T) {
@@ -25,13 +25,22 @@ func TestParse(t *testing.T) {
 				1 5
 				6
 				2 0 10 5 9 69`,
-				firstTestFile{},
+				&firstTestFile{},
 		},
 	}
 	for _, tc := range(testCases) {
 		input := regexp.MustCompile(`\n\s+`).ReplaceAll([]byte(tc.input), []byte("\n"))
-		fmt.Println(string(input))
+		// fmt.Println(string(input))
 		fmt.Println(reflect.TypeOf(tc.parser))
+		fmt.Println(reflect.TypeOf(tc.parser).Elem().Field(1).Type.Elem())
+		fmt.Println(reflect.ValueOf(reflect.TypeOf(tc.parser).Elem().Field(1).Type.Elem()))
+		//reflect.ValueOf(tc.parser).Elem().Field(1).SetCap(3)
+		newv := reflect.MakeSlice(reflect.ValueOf(tc.parser).Elem().Field(1).Type(), 3, 3)
+		reflect.Copy(newv, reflect.ValueOf(tc.parser).Elem().Field(1))
+		reflect.ValueOf(tc.parser).Elem().Field(1).Set(newv)
+		fmt.Println(reflect.ValueOf(tc.parser).Elem().Field(1))
+		fmt.Println(reflect.ValueOf(tc.parser).Elem().Field(1).Index(0).Field(0))
+
 		err := challenge_parser.Parse(tc.parser, bytes.NewReader(input))
 		if err != nil {
 			log.Println(err)
