@@ -24,7 +24,8 @@ func TestParse(t *testing.T) {
 				5 10
 				1 5
 				6
-				2 0 10 5 9 69`,
+				2 0 10 5 9 69
+`,
 				&firstTestFile{},
 		},
 	}

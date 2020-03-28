@@ -7,6 +7,7 @@ import (
 	"log"
 	"reflect"
 	"strconv"
+	"strings"
 )
 const HEADER_DELIMITER = "delimiter"
 const HEADER_INDEX = "index"
@@ -43,7 +44,10 @@ func Parse (t interface{}, reader io.Reader) (error) {
 		return fmt.Errorf("input must not be nil")
 	}
 	// TODO throw if not struct
-	parser, err := parseType(typeOf.Elem())
+	parser, parseTypeErr := parseType(typeOf.Elem())
+	if parseTypeErr != nil {
+		return parseTypeErr
+	}
 	root := &visitor{
 		value:      reflect.ValueOf(t).Elem(),
 		parser:     parser,
@@ -53,8 +57,8 @@ func Parse (t interface{}, reader io.Reader) (error) {
 		isArrayEl:  false,
 		isStructEl: false,
 	}
-	v, err := parseInput(root, buffedReader)
-	fmt.Println(v)
+	_, err := parseInput(root, buffedReader)
+	fmt.Println(root.value.Interface())
 	return err
 }
 
@@ -64,6 +68,7 @@ func parseInput (current *visitor, reader *bufio.Reader) (interface{}, error) {
 	if kindInSlice(currentParser.kind, basic_types) {
 		split := current.findDelimiter()
 		text, readErr := reader.ReadString(split)
+		text = strings.TrimSuffix(text, string(split))
 		if readErr != nil {
 			return nil, readErr
 		}
@@ -97,6 +102,61 @@ func parseInput (current *visitor, reader *bufio.Reader) (interface{}, error) {
 				return nil, fmt.Errorf("overflow for %s with kind %s", text, currentParser.kind)
 			}
 			v.SetFloat(n)
+		default:
+			panic(fmt.Errorf("not implemented %s", currentParser.kind))
+		}
+		return nil, nil
+	}
+	if currentParser.kind == reflect.Slice {
+		nv := reflect.MakeSlice(currentParser.ownType, current.nElems,current.nElems)
+		for i := 0; i < current.nElems; i++ {
+			value := nv.Index(i)
+			next := &visitor{
+				value:      value,
+				parser:     currentParser.elem,
+				prev:       current,
+				position:   i,
+				isLast:     i == current.nElems - 1,
+				isArrayEl:  true,
+				nElems:     0,
+				isStructEl: false,
+			}
+			_, parseErr := parseInput(next, reader)
+			if parseErr != nil {
+				return nil, parseErr
+			}
+			/*_, readErr := reader.ReadString(current.findDelimiter())
+			if readErr != nil {
+				return nil, readErr
+			}*/
+		}
+		v.Set(nv)
+		return nil, nil
+	}
+	if currentParser.kind == reflect.Struct {
+		for i, fieldParser := range (currentParser.fields) {
+			var nElems int
+			if fieldParser.kind == reflect.Slice {
+				nElems = int(current.value.Field(fieldParser.field.indexedBy).Int())
+			}
+			next := &visitor{
+				value:      current.value.Field(i),
+				parser:     fieldParser,
+				prev:       current,
+				position:   i,
+				isLast:     i == len(currentParser.fields)-1,
+				isArrayEl:  false,
+				nElems:     nElems,
+				isStructEl: true,
+			}
+			_, parseErr := parseInput(next, reader)
+			if parseErr != nil {
+				return nil, parseErr
+			}
+			/*_, readErr := reader.ReadString(current.findDelimiter())
+			if readErr != nil {
+				return nil, readErr
+			}*/
 		}
 	}
 	return nil, nil
@@ -104,7 +164,7 @@ func parseInput (current *visitor, reader *bufio.Reader) (interface{}, error) {
 
 
 func (v * visitor) findDelimiter () byte {
-	if v == nil { // last delimiter
+	if v.prev == nil { // last delimiter
 		return '\n'
 	}
 	if v.isStructEl && !v.isLast {
@@ -129,6 +189,7 @@ type visitor struct {
 	position int
 	isLast bool
 	isArrayEl bool
+	nElems int
 	isStructEl bool
 }
 
@@ -138,6 +199,7 @@ func parseType (typeOf reflect.Type) (*typeParser, error) {
 	if kindInSlice(kind, basic_types) {
 		return &typeParser{
 			kind: kind,
+			ownType: typeOf,
 		}, nil
 	}
 	if kind == reflect.Slice {
@@ -150,6 +212,7 @@ func parseType (typeOf reflect.Type) (*typeParser, error) {
 			return &typeParser{}, elemParseErr
 		}
 		parser := typeParser{
+			ownType: typeOf,
 			elem: elemParser,
 			kind: kind,
 		}
@@ -160,6 +223,7 @@ func parseType (typeOf reflect.Type) (*typeParser, error) {
 	}
 	nFields := typeOf.NumField()
 	parser := typeParser{
+		ownType: typeOf,
 		kind: kind,
 		fields: make([]*typeParser, nFields),
 		nFields: nFields,
@@ -229,6 +293,7 @@ func kindInSlice(a reflect.Kind, list []reflect.Kind) bool {
 
 type typeParser struct {
 	kind reflect.Kind
+	ownType reflect.Type
 	elem *typeParser // in case of array
 	fields []*typeParser // in case of slice
 	nFields int // in case of slice
