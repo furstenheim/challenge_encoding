@@ -58,3 +58,4 @@ type firstTestCall struct {
 // TODO test fixed size arrays
 // TODO test array separated by spaces are not spaces
 // TODO test uint, int64 int32
+// TODO test struct -> struct -> elem

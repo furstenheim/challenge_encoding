@@ -1,6 +1,7 @@
 package challenge_parser
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -36,13 +37,23 @@ func Parse (t interface{}, reader io.Reader) (error) {
 
 	// 	buffedReader.ReadString('\n')
 	typeOf := reflect.TypeOf(t)
+	if typeOf.Kind() != reflect.Struct {
+		return fmt.Errorf("top structure must be a struct")
+	}
+	// TODO throw if not struct
 	_, err := parseType(typeOf)
 	return err
 }
-func parseType (typeOf reflect.Type) (typeParser, error) {
+
+func parseInput (stack []*typeParser, reader bufio.Reader) (interface{}, error) {
+	if kindInSlice()
+}
+
+
+func parseType (typeOf reflect.Type) (*typeParser, error) {
 	kind := typeOf.Kind()
 	if kindInSlice(kind, basic_types) {
-		return typeParser{
+		return &typeParser{
 			kind: kind,
 		}, nil
 	}
@@ -50,19 +61,21 @@ func parseType (typeOf reflect.Type) (typeParser, error) {
 		elem := typeOf.Elem()
 		elemParser, elemParseErr := parseType(elem)
 		if elemParseErr != nil {
-			return typeParser{}, elemParseErr
+			return &typeParser{}, elemParseErr
 		}
 		parser := typeParser{
-
-			elem: &elemParser,
+			elem: elemParser,
 			kind: kind,
 		}
-		return parser, nil
+		return &parser, nil
+	}
+	if kind != reflect.Struct {
+		return nil, fmt.Errorf("kind not supported %s", kind)
 	}
 	nFields := typeOf.NumField()
 	parser := typeParser{
 		kind: kind,
-		fields: make([]field, nFields),
+		fields: make([]*typeParser, nFields),
 		nFields: nFields,
 	}
 	nameToField := map[string]int{}
@@ -72,49 +85,51 @@ func parseType (typeOf reflect.Type) (typeParser, error) {
 		fmt.Println(name, structField.Type.Kind())
 		index, parseIndexError := parser.parseIndex(structField)
 		if parseIndexError != nil {
-			return typeParser{}, parseIndexError
+			return nil, parseIndexError
 		}
 		delimiter, delimiterError := parser.parseDelimiter(structField)
 		if delimiterError != nil {
-			return typeParser{}, delimiterError
+			return nil, delimiterError
 		}
 		indexedByString, indexedByError := parser.parseIndexedBy(structField)
 		if indexedByError != nil {
-			return typeParser{}, indexedByError
+			return nil, indexedByError
 		}
 		elemDelimiter, elemDelimiterError := parser.parseElemDelimiter(structField)
 		if elemDelimiterError != nil {
-			return typeParser{}, elemDelimiterError
+			return nil, elemDelimiterError
 		}
 		fieldTypeParser, subParserError := parseType(structField.Type)
 		if subParserError != nil {
-			return typeParser{}, subParserError
+			return nil, subParserError
 		}
 		nameToField[name] = index
-		parser.fields[index] = field{
+		fieldTypeParser.field = field{
 			name: name,
-			parser: &fieldTypeParser,
+			// parser: &fieldTypeParser,
 			index: int(index),
 			elemDelimiter: elemDelimiter,
 			delimiter: delimiter,
 			indexedByString: indexedByString,
 		}
+
+		parser.fields[index] = fieldTypeParser
 	}
 	for i, f := range(parser.fields) {
-		if f.indexedByString != "" {
-			index, ok := nameToField[f.indexedByString]
+		if f.field.indexedByString != "" {
+			index, ok := nameToField[f.field.indexedByString]
 			if !ok {
-				return typeParser{}, fmt.Errorf("unknown property indexed %s for field %s", f.indexedByString, f.name)
+				return nil, fmt.Errorf("unknown property indexed %s for field %s", f.field.indexedByString, f.field.name)
 			}
 			if index >= i {
-				return typeParser{}, fmt.Errorf("slice has to be indexed by previous property %s", f.name)
+				return nil, fmt.Errorf("slice has to be indexed by previous property %s", f.field.name)
 			}
-			f.indexedBy = index
+			f.field.indexedBy = index
 			parser.fields[i] = f
 		}
 	}
 	log.Println(parser)
-	return parser, nil
+	return &parser, nil
 }
 
 func kindInSlice(a reflect.Kind, list []reflect.Kind) bool {
@@ -128,16 +143,17 @@ func kindInSlice(a reflect.Kind, list []reflect.Kind) bool {
 
 type typeParser struct {
 	kind reflect.Kind
-	elem *typeParser
-	fields []field
-	nFields int
+	elem *typeParser // in case of array
+	fields []*typeParser // in case of slice
+	nFields int // in case of slice
+	field field // in case of element of struct
 }
 
 
 type field struct {
 	name string
 	index int
-	parser *typeParser
+	// parser *typeParser
 	delimiter string
 	elemDelimiter string // Used for arrays
 	indexedByString string
@@ -201,7 +217,7 @@ func (parser typeParser) parseIndex (structField reflect.StructField) (int, erro
 	if index < 0 {
 		return 0, fmt.Errorf("received negative index for field %s value %d", structField.Name, index)
 	}
-	if parser.fields[index].delimiter != "" {
+	if parser.fields[index].field.delimiter != "" {
 		return 0, fmt.Errorf("received repeated index for field %s", structField.Name)
 	}
 	return int(index), nil
