@@ -16,8 +16,10 @@ func Parse (t interface{}, reader io.Reader) (error) {
 		fields: make([]field, nFields),
 		nFields: nFields,
 	}
+	nameToField := map[string]int{}
 	for i := 0; i < nFields; i++ {
 		structField := typeOf.Field(i)
+		name := structField.Name
 		index, parseIndexError := parser.parseIndex(structField)
 		if parseIndexError != nil {
 			return parseIndexError
@@ -26,9 +28,29 @@ func Parse (t interface{}, reader io.Reader) (error) {
 		if delimiterError != nil {
 			return delimiterError
 		}
+		indexedByString, indexedByError := parser.parseIndexedBy(structField)
+		if indexedByError != nil {
+			return indexedByError
+		}
+		nameToField[name] = index
 		parser.fields[index] = field{
+			name: name,
 			index: int(index),
 			delimiter: delimiter,
+			indexedByString: indexedByString,
+		}
+	}
+	for i, f := range(parser.fields) {
+		if f.indexedByString != "" {
+			index, ok := nameToField[f.indexedByString]
+			if !ok {
+				return fmt.Errorf("unknown property indexed %s for field %s", f.indexedByString, f.name)
+			}
+			if index >= i {
+				return fmt.Errorf("slice has to be indexed by previous property %s", f.name)
+			}
+			f.indexedBy = index
+			parser.fields[i] = f
 		}
 	}
 	log.Println(parser)
@@ -38,6 +60,15 @@ func Parse (t interface{}, reader io.Reader) (error) {
 type typeParser struct {
 	fields []field
 	nFields int
+}
+
+
+type field struct {
+	name string
+	indexedBy int
+	index int
+	delimiter string
+	indexedByString string
 }
 
 func (parser typeParser) parseDelimiter (structField reflect.StructField) (string, error) {
@@ -50,6 +81,19 @@ func (parser typeParser) parseDelimiter (structField reflect.StructField) (strin
 		return " ", nil
 	}
 	return "", fmt.Errorf("unknown delimiter %s", delimiterText)
+}
+
+func (parser typeParser) parseIndexedBy (structField reflect.StructField) (string, error) {
+	tag := structField.Tag
+	delimitedBy, ok := tag.Lookup("indexed")
+	kind := structField.Type.Kind()
+	if ok && kind != reflect.Slice {
+		return "", fmt.Errorf("non slice was indexed %s", structField.Name)
+	}
+	if  kind == reflect.Slice && (!ok || delimitedBy == "") {
+		return "", fmt.Errorf("slice should've been indexed and it was not %s", structField.Name)
+	}
+	return delimitedBy, nil
 }
 
 func (parser typeParser) parseIndex (structField reflect.StructField) (int, error) {
@@ -74,11 +118,6 @@ func (parser typeParser) parseIndex (structField reflect.StructField) (int, erro
 	return int(index), nil
 }
 
-type field struct {
-	indexedBy string
-	index int
-	delimiter string
-}
 
 
 
