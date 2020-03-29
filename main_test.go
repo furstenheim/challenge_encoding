@@ -1,8 +1,9 @@
-package challenge_parser_test
+package challenge_encoding_test
 
 import (
 	"bytes"
-	"challenge_parser"
+	"challenge_encoding"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"reflect"
@@ -10,7 +11,26 @@ import (
 	"testing"
 )
 
-func TestParse(t *testing.T) {
+func ExampleUnmarshall() {
+	input := `4
+6 10
+8 21
+5 10
+1 5
+6
+2 0 10 5 9 69
+`
+	output := &firstTestFile{}
+	err := challenge_encoding.Unmarshall(output, bytes.NewReader([]byte(input)))
+	if err != nil {
+		fmt.Println("Could not unmarshall")
+	}
+	fmt.Printf("Output has %d as nCases.\nFirst call of example is %d %d", output.NCases, output.Calls[0].Start, output.Calls[0].End)
+	// Output: Output has 4 as nCases.
+	//First call of example is 6 10
+}
+
+func TestUnmarshall(t *testing.T) {
 	testCases := []struct{
 		name string
 		input string
@@ -70,10 +90,10 @@ func TestParse(t *testing.T) {
 					3330
 					2.0
 `,
-				&tuentiChallengeQuestion10{},
-				tuentiChallengeQuestion10{
+				&tuentiChallengeQuestion11{},
+				tuentiChallengeQuestion11{
 					NCases: 2,
-					Cases:  []tuentiChallengeQuestion10Case{
+					Cases:  []tuentiChallengeQuestion11Case{
 						{
 							NMoons:    2,
 							Distances: []float64{2.0, 2.5},
@@ -99,7 +119,7 @@ func TestParse(t *testing.T) {
 	for _, tc := range(testCases) {
 		input := regexp.MustCompile(`\n\s+`).ReplaceAll([]byte(tc.input), []byte("\n"))
 
-		err := challenge_parser.Parse(tc.parser, bytes.NewReader(input))
+		err := challenge_encoding.Unmarshall(tc.parser, bytes.NewReader(input))
 		if err != nil {
 			t.Error(err)
 			return
@@ -114,8 +134,8 @@ func TestParseFromFile (t *testing.T) {
 		t.Error(err)
 		return
 	}
-	challenge := &tuentiChallengeQuestion10{}
-	err = challenge_parser.Parse(challenge, reader)
+	challenge := &tuentiChallengeQuestion11{}
+	err = challenge_encoding.Unmarshall(challenge, reader)
 	if err != nil {
 		t.Error(err)
 		return
@@ -150,12 +170,12 @@ type tuentiChallengeQuestion9Case struct {
 	Rhs string `index:"4" delimiter:"space"`
 }
 
-type tuentiChallengeQuestion10 struct {
-	NCases int `index:"0"`
-	Cases []tuentiChallengeQuestion10Case `index:"1" indexed:"NCases"`
+type tuentiChallengeQuestion11 struct {
+	NCases int                            `index:"0"`
+	Cases []tuentiChallengeQuestion11Case `index:"1" indexed:"NCases"`
 }
 
-type tuentiChallengeQuestion10Case struct {
+type tuentiChallengeQuestion11Case struct {
 	NMoons int `index:"0"`
 	Distances []float64 `index:"1" elem_delimiter:"space" indexed:"NMoons"`
 	Positions []float64 `index:"2" elem_delimiter:"space" indexed:"NMoons"`

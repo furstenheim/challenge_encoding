@@ -1,4 +1,4 @@
-package challenge_parser
+package challenge_encoding
 
 import (
 	"bufio"
@@ -31,7 +31,12 @@ var basic_types = []reflect.Kind{
 	reflect.Float64,
 	reflect.String,
 }
-func Parse (t interface{}, reader io.Reader) (error) {
+
+/*
+Unmarshalls content of reader into t, a pointer to the corresponding struct.
+The struct has to be correctly annotated
+ */
+func Unmarshall(t interface{}, reader io.Reader) (error) {
 	buffedReader := bufio.NewReader(reader)
 
 	// 	buffedReader.ReadString('\n')

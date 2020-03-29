@@ -1,4 +1,4 @@
-module challenge_parser
+module challenge_encoding
 
 go 1.14
 
