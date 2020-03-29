@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -43,7 +42,10 @@ func Parse (t interface{}, reader io.Reader) (error) {
 	if t == nil {
 		return fmt.Errorf("input must not be nil")
 	}
-	// TODO throw if not struct
+
+	if typeOf.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("expected pointed to struct")
+	}
 	parser, parseTypeErr := parseType(typeOf.Elem())
 	if parseTypeErr != nil {
 		return parseTypeErr
@@ -58,7 +60,6 @@ func Parse (t interface{}, reader io.Reader) (error) {
 		isStructEl: false,
 	}
 	_, err := parseInput(root, buffedReader)
-	fmt.Println(root.value.Interface())
 	return err
 }
 
@@ -96,10 +97,10 @@ func parseInput (current *visitor, reader *bufio.Reader) (interface{}, error) {
 		case reflect.Float32, reflect.Float64:
 			n, err := strconv.ParseFloat(text, v.Type().Bits())
 			if err != nil {
-				return nil, fmt.Errorf("overflow value with %s for kind %s", text, currentParser.kind)
+				return nil, fmt.Errorf("error parsing float %s for %s of kind %s", err, text, currentParser.kind)
 			}
 			if v.OverflowFloat(n) {
-				return nil, fmt.Errorf("overflow for %s with kind %s", text, currentParser.kind)
+				return nil, fmt.Errorf("overflow for \"%s\" with kind %s", text, currentParser.kind)
 			}
 			v.SetFloat(n)
 		default:
@@ -232,7 +233,6 @@ func parseType (typeOf reflect.Type) (*typeParser, error) {
 	for i := 0; i < nFields; i++ {
 		structField := typeOf.Field(i)
 		name := structField.Name
-		fmt.Println(name, structField.Type.Kind())
 		index, parseIndexError := parser.parseIndex(structField)
 		if parseIndexError != nil {
 			return nil, parseIndexError
@@ -278,7 +278,6 @@ func parseType (typeOf reflect.Type) (*typeParser, error) {
 			parser.fields[i] = f
 		}
 	}
-	log.Println(parser)
 	return &parser, nil
 }
 
