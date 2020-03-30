@@ -45,12 +45,13 @@ In this case the topic is about space travel. 2 the number of cases. Then we hav
  
     output := &firstTestFile{}
 	err := challenge_encoding.Unmarshall(output, bytes.NewReader([]byte(input)))
-	fmt.Println(output.NCases)
+	
+
+And that would be all.
+
+    fmt.Println(output.NCases)
 	> 2
 	fmt.Println(len(output.Cases[0].Distances)
 	> 2
 	fmt.Println(output.Cases[0].Capacity)
 	> 20
-
-And that would be all.
-
