@@ -8,7 +8,7 @@ Challenge_encoding implements an encoder for code competitions such as [Code jam
 
 A [standard problem](https://contest.tuenti.net/resources/2019/Question_11.html) for a competition would look like 
 
-    2
+    1
     2
     2.0 2.5
     0.0 3.14
@@ -16,15 +16,9 @@ A [standard problem](https://contest.tuenti.net/resources/2019/Question_11.html)
     4 5
     20
     6.0
-    4
-    0.3 0.4 0.5 0.6
-    0.15 0.18 1.15 1.6
-    28.8 216.0 27.0 432.0
-    1532 770 1250 1630
-    3330
-    2.0
+    
 
-In this case the topic is about space travel. 2 the number of cases. Then we have 2 as the number of moons. For each of those an array with properties. And finally some properties on our ship. Using this encoding it can be summarized as following:
+In this case the topic is about space travel. "1" the number of cases. Then we have "2" as the number of moons of the first case. For each of those an array with properties. And finally some properties on our ship. Using this encoding it can be summarized as following:
 
     type tuentiChallengeQuestion11 struct {
         NCases int `index:"0"`
@@ -50,7 +44,7 @@ In this case the topic is about space travel. 2 the number of cases. Then we hav
 And that would be all.
 
     fmt.Println(output.NCases)
-	> 2
+	> 1
 	fmt.Println(len(output.Cases[0].Distances)
 	> 2
 	fmt.Println(output.Cases[0].Capacity)
