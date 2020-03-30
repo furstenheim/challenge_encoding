@@ -55,3 +55,64 @@ And that would be all.
 	> 2
 	fmt.Println(output.Cases[0].Capacity)
 	> 20
+
+
+### Supported annotations
+
+#### index
+Index describes in what position of the input the property will be received. For example in:
+
+    type example struct {
+        IComeSecond int `index:"1"`
+        IComeFirst int `index:"0"`
+    }
+Index is required in all exported properties.
+
+#### delimiter
+How a property finishes. By default it is assumed to be a newline. Possible value is "space"
+
+    type spaceDelimited struct {
+        First int `index:"0" delimiter:"space"`
+        Second int `index:"1"
+        Third int
+    }
+    input := `1 2
+    3`
+    parsed := spaceDelimited{First: 1, Second: 2, Third: 3}
+    
+#### indexed
+All variable size slices are assumed to be indexed by another property. That is, there is another field that specifies the length of the slice.
+
+    type sliceExample struct {
+        LengthOfSlice int `index:"0"`
+        Slice []int `index:"1" indexed:"LengthOfSlice"` 
+    }
+    input := `2
+    1
+    3`
+    parsed := sliceExample{LengthOfSlice: 2, Slice: []int{1, 3}}
+    
+#### elem_delimiter
+Given a slice we need to know how to elements of it are delimited. This is defined by this property. Default value is new line. It can be "space"
+
+    type sliceExample struct {
+        LengthOfSlice int `index:"0"`
+        NewLineSlice []int `index:"1" indexed:"LengthOfSlice"`
+        SpaceLineSlice []int `index:"1" indexed:"LengthOfSlice" elem_delimiter:"space"` 
+    }
+    input := `2
+    1
+    3
+    4 5`
+    parsed := sliceExample{LengthOfSlice: 2, NewLineSlice: []int{1, 3}, SpaceLineSlice: []int{4, 5}}
+
+#### Not currently supported
+* Fixed size arrays. Instead one can use struct with the given number of properties
+* Not indexed slices. Most of the cases in the competitions include a field with the length of variable size arrays, so this is not supported.
+* Nested slices. Like in:
+
+        type example struct {
+            Matrix [][]int
+        }
+        
+For that we would need to have two fields indexing the different lengths. Something like elem_delimiter_2

@@ -115,6 +115,24 @@ func TestUnmarshall(t *testing.T) {
 					},
 				},
 		},
+		{
+			"Test different types",
+			`1
+					2
+					3 4
+					5
+				`,
+			&testDifferentTypes{},
+			testDifferentTypes{
+				SomeUint:        1,
+				SomeInt64:       2,
+				SomeInt32:       3,
+				SomeAlias:       4,
+				SomeInnerStruct: testInnerStruct{
+					SomeAlias: 5,
+				},
+			},
+		},
 	}
 	for _, tc := range(testCases) {
 		input := regexp.MustCompile(`\n\s+`).ReplaceAll([]byte(tc.input), []byte("\n"))
@@ -185,9 +203,19 @@ type tuentiChallengeQuestion11Case struct {
 	Range float64 `index:"6"`
 }
 
-// TODO test aliases
+type testDifferentTypes struct {
+	SomeUint uint `index:"0"`
+	SomeInt64 int64 `index:"1"`
+	SomeInt32 int32 `index:"2" delimiter:"space"`
+	SomeAlias myAlias `index:"3"`
+	SomeInnerStruct testInnerStruct `index:"4"`
+}
+
+type testInnerStruct struct {
+	SomeAlias myAlias `index:"0"`
+}
+
+type myAlias int
+
 // TODO test fixed size arrays
-// TODO test array separated by spaces are not spaces
-// TODO test uint, int64 int32
-// TODO test struct -> struct -> elem
 // TODO error test on [][]
