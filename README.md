@@ -2,7 +2,7 @@
 
     go get github.com/furstenheim/challenge_encoding
     
-Challenge_encoding implements an encoder for code competitions such as [Code jam](https://codingcompetitions.withgoogle.com/codejam) or [Tuenti Challenge](https://contest.tuenti.net/). This avoids having to write a parser for each problem and just focus on the problem.
+Challenge_encoding implements a decoder for code competitions such as [Code jam](https://codingcompetitions.withgoogle.com/codejam) or [Tuenti Challenge](https://contest.tuenti.net/). This avoids having to write a parser for each problem and just focus on the problem.
 
 ### Example
 
@@ -19,22 +19,23 @@ A [standard problem](https://contest.tuenti.net/resources/2019/Question_11.html)
     
 
 In this case the topic is about space travel. "1" the number of cases. Then we have "2" as the number of moons of the first case. For each of those an array with properties. And finally some properties on our ship. Using this encoding it can be summarized as following:
+```go
+type tuentiChallengeQuestion11 struct {
+    NCases int `index:"0"`
+    Cases []tuentiChallengeQuestion11Case `index:"1" indexed:"NCases"`
+}
 
-    type tuentiChallengeQuestion11 struct {
-        NCases int `index:"0"`
-        Cases []tuentiChallengeQuestion11Case `index:"1" indexed:"NCases"`
-    }
-    
-    type tuentiChallengeQuestion11Case struct {
-        NMoons int `index:"0"`
-        Distances []float64 `index:"1" elem_delimiter:"space" indexed:"NMoons"`
-        Positions []float64 `index:"2" elem_delimiter:"space" indexed:"NMoons"`
-        Periods []float64 `index:"3" elem_delimiter:"space" indexed:"NMoons"`
-        Weights []int `index:"4" elem_delimiter:"space" indexed:"NMoons"`
-        Capacity int `index:"5"`
-        Range float64 `index:"6"`
-    }
-    
+type tuentiChallengeQuestion11Case struct {
+    NMoons int `index:"0"`
+    Distances []float64 `index:"1" elem_delimiter:"space" indexed:"NMoons"`
+    Positions []float64 `index:"2" elem_delimiter:"space" indexed:"NMoons"`
+    Periods []float64 `index:"3" elem_delimiter:"space" indexed:"NMoons"`
+    Weights []int `index:"4" elem_delimiter:"space" indexed:"NMoons"`
+    Capacity int `index:"5"`
+    Range float64 `index:"6"`
+}
+```
+
  In order to parse the input, we only need:
  
     output := &firstTestFile{}
@@ -68,7 +69,7 @@ How a property finishes. By default it is assumed to be a newline. Possible valu
     type spaceDelimited struct {
         First int `index:"0" delimiter:"space"`
         Second int `index:"1"
-        Third int
+        Third int `index:"2"`
     }
     input := `1 2
     3`
@@ -87,12 +88,12 @@ All variable size slices are assumed to be indexed by another property. That is,
     parsed := sliceExample{LengthOfSlice: 2, Slice: []int{1, 3}}
     
 #### elem_delimiter
-Given a slice we need to know how to elements of it are delimited. This is defined by this property. Default value is new line. It can be "space"
+Given a slice we need to know how the elements of it are delimited. This is defined by the `elem_delimiter` property. Default value is new line. It can be "space"
 
     type sliceExample struct {
         LengthOfSlice int `index:"0"`
         NewLineSlice []int `index:"1" indexed:"LengthOfSlice"`
-        SpaceLineSlice []int `index:"1" indexed:"LengthOfSlice" elem_delimiter:"space"` 
+        SpaceLineSlice []int `index:"2" indexed:"LengthOfSlice" elem_delimiter:"space"` 
     }
     input := `2
     1
@@ -110,3 +111,8 @@ Given a slice we need to know how to elements of it are delimited. This is defin
         }
         
 For that we would need to have two fields indexing the different lengths. Something like elem_delimiter_2
+
+## Other programming languages
+The library is also available for java:
+
+* https://github.com/furstenheim/challenger

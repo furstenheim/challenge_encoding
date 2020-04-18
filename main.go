@@ -299,7 +299,7 @@ type typeParser struct {
 	kind reflect.Kind
 	ownType reflect.Type
 	elem *typeParser // in case of array
-	fields []*typeParser // in case of slice
+	fields []*typeParser // in case of struct
 	nFields int // in case of slice
 	field field // in case of element of struct
 }
