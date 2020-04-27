@@ -1,4 +1,4 @@
-module com.github/furstenheim/challenge_encoding
+module github.com/furstenheim/challenge_encoding
 
 go 1.14
 
