@@ -1,8 +1,7 @@
-package challenge_encoding_test
+package challenge_encoding
 
 import (
 	"bytes"
-	"challenge_encoding"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -21,7 +20,7 @@ func ExampleUnmarshall() {
 2 0 10 5 9 69
 `
 	output := &firstTestFile{}
-	err := challenge_encoding.Unmarshall(output, bytes.NewReader([]byte(input)))
+	err := Unmarshall(output, bytes.NewReader([]byte(input)))
 	if err != nil {
 		fmt.Println("Could not unmarshall")
 	}
@@ -51,6 +50,25 @@ func TestUnmarshall(t *testing.T) {
 				firstTestFile{
 					NCases:   4,
 					Calls:    []firstTestCall{{6, 10}, {8, 21}, {5, 10}, {1, 5}},
+					NQueries: 6,
+					Queries:  []query{{2}, {0}, {10}, {5}, {9}, {69}},
+				},
+		},
+
+		{
+			"First test",
+			`4
+				6,10
+				8,21
+				5,10
+				1,5
+				6
+				2 0 10 5 9 69
+`,
+				&firstTestFileCustomDelimiter{},
+				firstTestFileCustomDelimiter{
+					NCases:   4,
+					Calls:    []firstTestCallCustomDelimiter{{6, 10}, {8, 21}, {5, 10}, {1, 5}},
 					NQueries: 6,
 					Queries:  []query{{2}, {0}, {10}, {5}, {9}, {69}},
 				},
@@ -137,7 +155,7 @@ func TestUnmarshall(t *testing.T) {
 	for _, tc := range(testCases) {
 		input := regexp.MustCompile(`\n\s+`).ReplaceAll([]byte(tc.input), []byte("\n"))
 
-		err := challenge_encoding.Unmarshall(tc.parser, bytes.NewReader(input))
+		err := Unmarshall(tc.parser, bytes.NewReader(input))
 		if err != nil {
 			t.Error(err)
 			return
@@ -153,7 +171,7 @@ func TestParseFromFile (t *testing.T) {
 		return
 	}
 	challenge := &tuentiChallengeQuestion11{}
-	err = challenge_encoding.Unmarshall(challenge, reader)
+	err = Unmarshall(challenge, reader)
 	if err != nil {
 		t.Error(err)
 		return
@@ -167,11 +185,23 @@ type firstTestFile struct {
 	NQueries int `index:"2"`
 	Queries []query `index:"3" indexed:"NQueries" elem_delimiter:"space"`
 }
+
+type firstTestFileCustomDelimiter struct {
+	NCases int `index:"0"`
+	Calls []firstTestCallCustomDelimiter `index:"1" indexed:"NCases"`
+	NQueries int `index:"2"`
+	Queries []query `index:"3" indexed:"NQueries" elem_delimiter:"space"`
+}
 type query struct {
 	Time int `index:"0" delimiter:"space"`
 }
 type firstTestCall struct {
 	Start int `index:"0" delimiter:"space"`
+	End int `index:"1"`
+}
+
+type firstTestCallCustomDelimiter struct {
+	Start int `index:"0" delimiter:","`
 	End int `index:"1"`
 }
 

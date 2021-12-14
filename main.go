@@ -325,6 +325,10 @@ func (parser typeParser) parseDelimiter (structField reflect.StructField) (byte,
 	if delimiterText == DELIMITER_SPACE {
 		return ' ', nil
 	}
+
+	if len(delimiterText) == 1 {
+		return delimiterText[0], nil
+	}
 	return ' ', fmt.Errorf("unknown delimiter %s", delimiterText)
 }
 
